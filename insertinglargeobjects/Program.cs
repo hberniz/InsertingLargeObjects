@@ -9,39 +9,128 @@ namespace insertinglargeobjects
 {
     class Program
     {
-        static String fileLocation = "C://temp/theData";
+        static String fileLocation;
 
-        static NpgsqlConnection originalConnection = new NpgsqlConnection("Server=secondcasetest.postgres.database.azure.com;Database=test;Port=5432;User Id=humberto@secondcasetest;Password=Pa$$w0rd;");
-        static NpgsqlConnection restoredServerConnection = new NpgsqlConnection("Server=humbertocasetest.postgres.database.azure.com;Database=test;Port=5432;User Id=humberto@humbertocasetest;Password=Pa$$w0rd;");
+        static NpgsqlConnection originalConnection;
+        static NpgsqlConnection restoredServerConnection;
 
         static void Main(string[] args)
         {
-            uint startOid = uint.Parse(args[0]);
-            uint endOid = uint.Parse(args[1]);
-
-            System.Console.WriteLine("Start oid value: ");
-            System.Console.WriteLine(startOid);
-            System.Console.WriteLine("End oid value: ");
-            System.Console.WriteLine(endOid);
 
 
+            Console.Write("Enter original server name: ");
+            String originalServerName = Console.ReadLine();
+            Console.Write("Enter original server database name: ");
+            String originalServerDatabaseName = Console.ReadLine();
+            Console.Write("Enter original server username: ");
+            String originalServerUserName = Console.ReadLine();
 
+            string originalServerUserPassword = "";
+            Console.Write("Enter original server user password: ");
+            ConsoleKeyInfo key;
 
-            //adding values of the oids into an array
-            uint[] loid = new uint[endOid - startOid + 1];
-            for (int j=0; j<loid.Length; j++)
+            do
             {
-                loid[j] = startOid++;
-            }
+                key = Console.ReadKey(true);
 
-            for (int i = 0; i < loid.Length; i++)
-            {
-                if (doesNotExist(loid[i]))
+                // Backspace Should Not Work
+                if (key.Key != ConsoleKey.Backspace)
                 {
-                    DownloadData(loid[i], fileLocation + loid[i]+"", restoredServerConnection);
-                    InsertData(loid[i], fileLocation + loid[i] + "", originalConnection);
+                    originalServerUserPassword += key.KeyChar;
+                    Console.Write("*");
+                }
+                else
+                {
+                    Console.Write("\b");
                 }
             }
+            // Stops Receving Keys Once Enter is Pressed
+            while (key.Key != ConsoleKey.Enter);
+
+            Console.WriteLine();
+            //Console.WriteLine("The Password You entered is : " + originalServerUserPassword);
+
+            String originalServerConnectionString = "Server=" + originalServerName + "; Database= " + originalServerDatabaseName + ";Port=5432;User Id= " + originalServerUserName + ";Password= " + originalServerUserPassword + ";";
+            //Console.WriteLine("OriginalServer Conn String is " + originalServerConnectionString);
+
+            Console.WriteLine();
+            Console.Write("Enter restored server name: ");
+            String restoredServerName = Console.ReadLine();
+            Console.Write("Enter restored server database name: ");
+            String restoredServerDatabaseName = Console.ReadLine();
+            Console.Write("Enter restored server username: ");
+            String restoredServerUserName = Console.ReadLine();
+
+            string restoredServerUserPassword = "";
+            Console.Write("Enter restored server user password: ");
+            ConsoleKeyInfo key1;
+
+            do
+            {
+                key1 = Console.ReadKey(true);
+
+                // Backspace Should Not Work
+                if (key1.Key != ConsoleKey.Backspace)
+                {
+                    restoredServerUserPassword += key1.KeyChar;
+                    Console.Write("*");
+                }
+                else
+                {
+                    Console.Write("\b");
+                }
+            }
+            // Stops Receving key1s Once Enter is Pressed
+            while (key1.Key != ConsoleKey.Enter);
+
+            Console.WriteLine();
+            //Console.WriteLine("The Password You entered is : " + restoredServerUserPassword);
+
+            String restoredServerConnectionString = "Server=" + restoredServerName + "; Database= " + restoredServerDatabaseName + ";Port=5432;User Id= " + restoredServerUserName + ";Password= " + restoredServerUserPassword + ";";
+            //Console.WriteLine("restoredServer Conn String is " + restoredServerConnectionString);
+
+            originalConnection = new NpgsqlConnection(originalServerConnectionString);
+            restoredServerConnection = new NpgsqlConnection(restoredServerConnectionString);
+
+            System.Console.WriteLine();
+            System.Console.Write("Enter temp folder location : ");
+            fileLocation = Console.ReadLine();
+
+            System.Console.Write("Delete temp files: ");
+            bool deleteFiles = bool.Parse(Console.ReadLine());
+            System.Console.WriteLine();
+
+            System.Console.Write("Enter oid file name: ");
+            string oidFile = Console.ReadLine();
+            using (StreamReader reader = new StreamReader(oidFile))
+            {
+                string line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    uint loid = uint.Parse(line);
+                    //Console.WriteLine(line);
+                    if (doesNotExist(loid))
+                    {
+                        DownloadData(loid, fileLocation + loid + "", restoredServerConnection);
+                        System.Console.Write("Exported oid successfully to: " + fileLocation + loid + "");
+                        InsertData(loid, fileLocation + loid + "", originalConnection);
+                        System.Console.Write(", Imported oid successfully");
+                        if (deleteFiles)
+                        {
+                            File.Delete(fileLocation + loid + "");
+                            System.Console.WriteLine(", Deleted the oid file successfully");
+                        }
+                        else
+                        {
+                            System.Console.WriteLine();
+                        }
+                    }
+                }
+
+                reader.Close();
+            }
+
+            System.Console.WriteLine();
         }
 
 
@@ -74,13 +163,14 @@ namespace insertinglargeobjects
                     {
                         restoreManager.OpenReadWrite(id);
                         //if it hits this, this means the Oid doesnt
-                    } catch (Exception doesntExistInRestoredServer)
+                    }
+                    catch (Exception doesntExistInRestoredServer)
                     {
-                        Console.WriteLine("Doesn't exist in the Restored server, won't insert OID: "+ id + "");
+                        Console.WriteLine("Doesn't exist in the Restored server, won't insert OID: " + id + "");
                         return false;
                     }
 
-                    Console.WriteLine("OID" + id + "doesn't exist in orignal server, will begin transfer operation");
+                    Console.Write("OID " + id + " does not exist on orignal server, will begin transfer operation ");
                     return true;
                 }
                 finally
@@ -91,7 +181,7 @@ namespace insertinglargeobjects
 
 
             }
-            Console.WriteLine("OID" + id + " already exists, will not transfer data");
+            Console.WriteLine("OID " + id + " already exists, will not transfer data");
 
             return false;
         }
@@ -151,7 +241,8 @@ namespace insertinglargeobjects
             try
             {
                 uint oid = manager.Create(id);
-            } catch (Exception idExists)
+            }
+            catch (Exception idExists)
             {
                 Console.WriteLine("Trying to add Duplicate ID: " + idExists);
                 return;
@@ -174,6 +265,7 @@ namespace insertinglargeobjects
                     //writes the bytes into largeobject stream
                     stream.Write(buf, 0, buf.Length);
                     stream.Seek(0, System.IO.SeekOrigin.Begin);
+                    fileStream.Close();
                 }
                 //Save the changes to the object
                 transaction.Commit();
