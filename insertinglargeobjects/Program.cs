@@ -91,6 +91,8 @@ namespace insertinglargeobjects
 
 
             }
+            Console.WriteLine("OID" + id + " already exists, will not transfer data");
+
             return false;
         }
 
