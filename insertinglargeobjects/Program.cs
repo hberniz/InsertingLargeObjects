@@ -10,38 +10,25 @@ namespace insertinglargeobjects
 {
     class Program
     {
-        static String fileLocation = "C://temp/dataToTransfer";
+        static String fileLocation = "C://temp/theData";
 
         static NpgsqlConnection originalConnection = new NpgsqlConnection("Server=humbertocasetest.postgres.database.azure.com;Database=test;Port=5432;User Id=humberto@humbertocasetest;Password=Pa$$w0rd;");
         static NpgsqlConnection restoredServerConnection = new NpgsqlConnection("Server=humbertocasetest.postgres.database.azure.com;Database=test;Port=5432;User Id=humberto@humbertocasetest;Password=Pa$$w0rd;");
 
         static void Main(string[] args)
         {
-            //need to create command to first check if id exist in restored server and not in original, if this is true, then continue to to download data and insert
+
+            //need to implement a way to add a list of oid.
             uint[] loid = new uint[1000];
 
-
-
-            //the code below can be found here: https://www.npgsql.org/doc/large-objects
-            // Retrieve a Large Object Manager for this connection
-            NpgsqlLargeObjectManager manager = new NpgsqlLargeObjectManager(originalConnection);
-
-            // Reading and writing Large Objects requires the use of a transaction
-
-
-            //to compare
             for (int i = 0; i < loid.Length; i++)
             {
                 if (doesNotExist(loid[i]))
                 {
-                    DownloadData(loid[i], "C://temp/theData", restoredServerConnection);
-                    InsertData(loid[i], "C://temp/theData", originalConnection);
+                    DownloadData(loid[i], fileLocation + loid[i]+"", restoredServerConnection);
+                    InsertData(loid[i], fileLocation, originalConnection);
                 }
             }
-
-
-
-            //need to create a command to close connections if they are still open
         }
 
 
@@ -64,7 +51,7 @@ namespace insertinglargeobjects
                 }
                 catch (Exception exist)
                 {
-                    Console.WriteLine("Doesn't exist");
+                    Console.WriteLine("Doesn't exist, error message: " + exist);
                     return true;
                 }
                 finally
@@ -130,7 +117,14 @@ namespace insertinglargeobjects
             NpgsqlLargeObjectManager manager = new NpgsqlLargeObjectManager(connection);
 
             // Create a new empty file, returning the identifier to later access it, if specified inside create, will create a specific id in the metadata
-            uint oid = manager.Create(id);
+            try
+            {
+                uint oid = manager.Create(id);
+            } catch (Exception idExists)
+            {
+                Console.WriteLine("Trying to add Duplicate ID: " + idExists);
+                return;
+            }
 
             // Reading and writing Large Objects requires the use of a transaction
             using (var transaction = connection.BeginTransaction())
@@ -153,6 +147,7 @@ namespace insertinglargeobjects
                 //Save the changes to the object
                 transaction.Commit();
             }
+
         }
 
 
