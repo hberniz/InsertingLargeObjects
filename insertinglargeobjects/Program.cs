@@ -3,8 +3,7 @@ using System.Data;
 using System.IO;
 using System.Collections.Generic;
 using Npgsql;
-
-
+using System.Linq;
 
 namespace insertinglargeobjects
 {
@@ -17,9 +16,23 @@ namespace insertinglargeobjects
 
         static void Main(string[] args)
         {
+            uint startOid;// = uint.Parse(args[0]);
+            uint endOid;// = uint.Parse(args[1]);
 
-            //need to implement a way to add a list of oid.
-            uint[] loid = new uint[1000];
+            System.Console.WriteLine("Start oid value: ");
+           startOid = uint.Parse(System.Console.ReadLine());
+            System.Console.WriteLine("End oid value: ");
+            endOid = uint.Parse(System.Console.ReadLine());
+
+
+
+
+            //adding values of the oids into an array
+            uint[] loid = new uint[endOid - startOid + 1];
+            for (int j=0; j<loid.Length; j++)
+            {
+                loid[j] = startOid++;
+            }
 
             for (int i = 0; i < loid.Length; i++)
             {
@@ -41,7 +54,13 @@ namespace insertinglargeobjects
             {
                 originalConnection.Open();
             }
+            if (restoredServerConnection.State == ConnectionState.Closed)
+            {
+                restoredServerConnection.Open();
+            }
             NpgsqlLargeObjectManager manager = new NpgsqlLargeObjectManager(originalConnection);
+
+            NpgsqlLargeObjectManager restoreManager = new NpgsqlLargeObjectManager(restoredServerConnection);
 
             using (var transaction = originalConnection.BeginTransaction())
             {
@@ -51,7 +70,17 @@ namespace insertinglargeobjects
                 }
                 catch (Exception exist)
                 {
-                    Console.WriteLine("Doesn't exist, error message: " + exist);
+                    try
+                    {
+                        manager.OpenReadWrite(id);
+                        //if it hits this, this means the Oid doesnt
+                    } catch (Exception doesntExistInRestoredServer)
+                    {
+                        Console.WriteLine("Doesn't exist in the Restored server, won't insert OID: "+ id + "");
+                        return false;
+                    }
+
+                    Console.WriteLine("OID" + id + "doesn't exist in orignal server, will begin transfer operation");
                     return true;
                 }
                 finally
@@ -131,7 +160,7 @@ namespace insertinglargeobjects
             {
 
                 // Open the file for reading and writing
-                using (var stream = manager.OpenReadWrite(oid))
+                using (var stream = manager.OpenReadWrite(id))
                 {
                     //retrieving file that that needs to be inserted
                     FileStream fileStream = new FileStream(filelocation, FileMode.Open, FileAccess.Read, FileShare.None);
