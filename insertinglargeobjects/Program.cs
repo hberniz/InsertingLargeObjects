@@ -10,7 +10,7 @@ namespace insertinglargeobjects
 {
     class Program
     {
-        String fileLocation = "C://temp/dataToTransfer";
+        static String fileLocation = "C://temp/dataToTransfer";
 
         static NpgsqlConnection originalConnection = new NpgsqlConnection("Server=humbertocasetest.postgres.database.azure.com;Database=test;Port=5432;User Id=humberto@humbertocasetest;Password=Pa$$w0rd;");
         static NpgsqlConnection restoredServerConnection = new NpgsqlConnection("Server=humbertocasetest.postgres.database.azure.com;Database=test;Port=5432;User Id=humberto@humbertocasetest;Password=Pa$$w0rd;");
@@ -18,13 +18,23 @@ namespace insertinglargeobjects
         static void Main(string[] args)
         {
             //need to create command to first check if id exist in restored server and not in original, if this is true, then continue to to download data and insert
-            uint[] loid = new uint[1000]; 
+            uint[] loid = new uint[1000];
 
-            for(int i=0; i< loid.Length; i++)
+
+
+            //the code below can be found here: https://www.npgsql.org/doc/large-objects
+            // Retrieve a Large Object Manager for this connection
+            NpgsqlLargeObjectManager manager = new NpgsqlLargeObjectManager(originalConnection);
+
+            // Reading and writing Large Objects requires the use of a transaction
+
+
+            //to compare
+            for (int i = 0; i < loid.Length; i++)
             {
-                if (doesNotExist())
+                if (doesNotExist(loid[i]))
                 {
-                    DownloadData(loid[i], "C://temp/theData" + loid[i].toString, restoredServerConnection);
+                    DownloadData(loid[i], "C://temp/theData", restoredServerConnection);
                     InsertData(loid[i], "C://temp/theData", originalConnection);
                 }
             }
@@ -32,18 +42,49 @@ namespace insertinglargeobjects
 
 
             //need to create a command to close connections if they are still open
-
         }
 
 
-        private static bool doesNotExist()
-        {
-            return true;
-        }
-       
-        private static void DownloadData(uint id, string filelocation, NpgsqlConnection connection)
+
+
+        //this will check the original server to see if the oid exists
+        private static bool doesNotExist(uint id)
         {
             if (originalConnection.State == ConnectionState.Closed)
+            {
+                originalConnection.Open();
+            }
+            NpgsqlLargeObjectManager manager = new NpgsqlLargeObjectManager(originalConnection);
+
+            using (var transaction = originalConnection.BeginTransaction())
+            {
+                try
+                {
+                    manager.OpenReadWrite(id);
+                }
+                catch (Exception exist)
+                {
+                    Console.WriteLine("Doesn't exist");
+                    return true;
+                }
+                finally
+                {
+                    //Save the changes to the object
+                    transaction.Commit();
+                }
+
+
+            }
+            return false;
+        }
+
+
+
+
+
+        private static void DownloadData(uint id, string filelocation, NpgsqlConnection connection)
+        {
+            if (connection.State == ConnectionState.Closed)
             {
                 connection.Open();
             }
@@ -64,17 +105,17 @@ namespace insertinglargeobjects
                     stream.Read(buf2, 0, buf2.Length);
 
                     //converting byte array to file and then storing file locally
-                    File.WriteAllBytes(filelocation, buf2);     
+                    File.WriteAllBytes(filelocation, buf2);
                 }
                 //Save the changes to the object
                 transaction.Commit();
             }
         }
-        
-       
-        
-        
-       
+
+
+
+
+
         private static void InsertData(uint id, string filelocation, NpgsqlConnection connection)
         {
             if (connection.State == ConnectionState.Closed)
@@ -82,7 +123,7 @@ namespace insertinglargeobjects
                 connection.Open();
             }
 
-            
+
             //the code below can be found here: https://www.npgsql.org/doc/large-objects
 
             // Retrieve a Large Object Manager for this connection
@@ -104,7 +145,7 @@ namespace insertinglargeobjects
 
                     //inserting file data into byte
                     fileStream.Read(buf, 0, buf.Length);
-                    
+
                     //writes the bytes into largeobject stream
                     stream.Write(buf, 0, buf.Length);
                     stream.Seek(0, System.IO.SeekOrigin.Begin);
@@ -119,22 +160,6 @@ namespace insertinglargeobjects
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     }
 }
+
