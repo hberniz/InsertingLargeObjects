@@ -11,13 +11,13 @@ namespace insertinglargeobjects
     {
         static String fileLocation = "C://temp/theData";
 
-        static NpgsqlConnection originalConnection = new NpgsqlConnection("Server=humbertocasetest.postgres.database.azure.com;Database=test;Port=5432;User Id=humberto@humbertocasetest;Password=Pa$$w0rd;");
+        static NpgsqlConnection originalConnection = new NpgsqlConnection("Server=secondcasetest.postgres.database.azure.com;Database=test;Port=5432;User Id=humberto@secondcasetest;Password=Pa$$w0rd;");
         static NpgsqlConnection restoredServerConnection = new NpgsqlConnection("Server=humbertocasetest.postgres.database.azure.com;Database=test;Port=5432;User Id=humberto@humbertocasetest;Password=Pa$$w0rd;");
 
         static void Main(string[] args)
         {
-            uint startOid;// = uint.Parse(args[0]);
-            uint endOid;// = uint.Parse(args[1]);
+            uint startOid;
+            uint endOid;
 
             System.Console.WriteLine("Start oid value: ");
            startOid = uint.Parse(System.Console.ReadLine());
@@ -39,7 +39,7 @@ namespace insertinglargeobjects
                 if (doesNotExist(loid[i]))
                 {
                     DownloadData(loid[i], fileLocation + loid[i]+"", restoredServerConnection);
-                    InsertData(loid[i], fileLocation, originalConnection);
+                    InsertData(loid[i], fileLocation + loid[i] + "", originalConnection);
                 }
             }
         }
@@ -72,7 +72,7 @@ namespace insertinglargeobjects
                 {
                     try
                     {
-                        manager.OpenReadWrite(id);
+                        restoreManager.OpenReadWrite(id);
                         //if it hits this, this means the Oid doesnt
                     } catch (Exception doesntExistInRestoredServer)
                     {
