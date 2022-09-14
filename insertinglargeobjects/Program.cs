@@ -16,13 +16,13 @@ namespace insertinglargeobjects
 
         static void Main(string[] args)
         {
-            uint startOid;
-            uint endOid;
+            uint startOid = uint.Parse(args[0]);
+            uint endOid = uint.Parse(args[1]);
 
             System.Console.WriteLine("Start oid value: ");
-           startOid = uint.Parse(System.Console.ReadLine());
+            System.Console.WriteLine(startOid);
             System.Console.WriteLine("End oid value: ");
-            endOid = uint.Parse(System.Console.ReadLine());
+            System.Console.WriteLine(endOid);
 
 
 
